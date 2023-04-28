@@ -1,4 +1,3 @@
-
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
@@ -20,6 +19,8 @@ public class Server{
 	ArrayList<ClientThread> clients = new ArrayList<ClientThread>();
 	TheServer server;
 	private Consumer<Serializable> callback;
+
+	public ArrayList<Integer> clientList = new ArrayList<Integer>() ;
 
 
 	Server(Consumer<Serializable> call){
@@ -45,6 +46,7 @@ public class Server{
 					ClientThread c = new ClientThread(mysocket.accept(), count);
 					callback.accept("client has connected to server: " + "client #" + count);
 					clients.add(c);
+					clientList.add(count);
 					c.start();
 
 
@@ -67,12 +69,15 @@ public class Server{
 		ObjectInputStream in;
 		ObjectOutputStream out;
 		ArrayList<String> privateMessages;
+		Helper helper = new Helper();
+
 
 		ClientThread(Socket s, int count){
 			this.connection = s;
 			this.count = count;
 			privateMessages = new ArrayList<>();
 		}
+
 
 		public void updateClients(String message, int recipient) {
 			for (int i = 0; i < clients.size(); i++) {
@@ -89,6 +94,7 @@ public class Server{
 
 		public void run(){
 
+
 			try {
 				in = new ObjectInputStream(connection.getInputStream());
 				out = new ObjectOutputStream(connection.getOutputStream());
@@ -98,7 +104,20 @@ public class Server{
 				System.out.println("Streams not open");
 			}
 
-			updateClients("new client on server, click to chat: client #"+count, -1);
+			//1 list 1    1   print welcome, online client1
+			//2 list 2    1,2
+			//3 list 3  . 1,2,3
+			//2 drop list 1,3
+
+			helper.clientListhelper = clientList;
+			helper.setClientListhelper(clientList);
+			updateClients("Welcome: client #" + count +"!", count);
+			updateClients("---------~ current status ~-----------" , -1);
+			for(int i=0; i <clientList.size(); i++){
+				updateClients("ONLINE(click to chat): client #" + clientList.get(i), -1);
+			}
+
+			//updateClients("new client on server, click to chat: client #"+count, -1);
 
 			while (true) {
 				try {
@@ -108,30 +127,43 @@ public class Server{
 						int recipient = in.readInt();
 						if (recipient == count) {
 							privateMessages.add(data);
+							updateClients("You are taking to yourself :)", count);
 						} else {
 							updateClients("[PRIVATE]click to reply"+ ": " + data +" --from client #" + count , recipient);
 						}
 					} else {
 						String data = in.readObject().toString();
-						updateClients("client #" + count + " said: " + data, -1);
+						updateClients("[PUBLIC]client #" + count + " said: " + data, -1);
 					}
 				} catch (Exception e) {
 					e.printStackTrace();
-					callback.accept("Client #" + count + " has left the server!");
+					clientList.remove(Integer.valueOf(count));
+					helper.clientListhelper = clientList;
+					updateClients("---------~ current status ~-----------" , -1);
 					updateClients("Client #" + count + " has left the server!", -1);
+					for(int i=0; i<clientList.size(); i++){
+						updateClients("ONLINE(click to chat): client #" + clientList.get(i), -1);
+					}
+					//updateClients("Client #" + count + " has left the server!", -1);
+					callback.accept("Client #" + count + " has left the server!");
+					//updateClients("Client #" + count + " has left the server!", -1);
 					clients.remove(this);
 					break;
 				}
+
+
 			}
+
+//			for(int k=0; k <clientList.size(); k++){
+//				updateClients("ONLINE(click to chat): client #" + clientList.get(k), -1);
+//			}
+//
+//			updateClients("-------------------------------" , -1);
+
 
 		}//end of run
 
+
+
 	}//end of client thread
 }
-
-
-
-	
-	
-
-	
