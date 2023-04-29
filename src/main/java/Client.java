@@ -16,6 +16,7 @@ public class Client extends Thread{
 	ObjectInputStream in;
 
 
+
 	private Consumer<Serializable> callback;
 
 	Client(Consumer<Serializable> call){
@@ -36,8 +37,10 @@ public class Client extends Thread{
 		while(true) {
 
 			try {
+
 				String message = in.readObject().toString();
 				callback.accept(message);
+
 			}
 			catch(Exception e) {}
 		}
@@ -65,18 +68,28 @@ public class Client extends Thread{
 		}
 	}
 
-	public void sendGroupMessage(String data, ArrayList<Integer> recipients) {
+	public void sendGroupMessage(String data, int recipient) {
 		try {
-			out.writeObject("group chat request");
+			out.writeObject("group");
 			out.writeObject(data);
-			for (Integer recipient : recipients) {
-				out.writeObject(recipient);
-			}
+			out.writeInt(recipient);
 			out.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
+
+	public void checkOnline() {
+		try {
+			out.writeObject("check request");
+			out.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+
+
 
 
 }

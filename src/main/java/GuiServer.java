@@ -16,18 +16,18 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
-import javafx.collections.ObservableList;
-import javafx.collections.FXCollections;
-import org.w3c.dom.Text;
-import javafx.scene.control.Label;
-import javafx.stage.Modality;
-import javafx.scene.control.CheckBox;
+
+import java.util.stream.Collectors;
+
+import java.util.Set;
+
+import java.util.HashSet;
 
 public class GuiServer extends Application{
 
 
 	TextField s1,s2,s3,s4, c1;
-	Button serverChoice,clientChoice,b1,privateChatSendButton, groupchat;
+	Button serverChoice,clientChoice,b1,privateChatSendButton, groupchat, online, button;
 	HashMap<String, Scene> sceneMap;
 	GridPane grid;
 	HBox buttonBox, clientVbox;
@@ -41,6 +41,11 @@ public class GuiServer extends Application{
 	ArrayList<Integer> clientsList = new ArrayList<>();
 
 	ListView<String> listItems, listItems2,listItems3;
+	ListView<String> clientListView;
+
+	Set<Integer> clientsSet = new HashSet<>();
+
+
 
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
@@ -76,10 +81,11 @@ public class GuiServer extends Application{
 		this.clientChoice.setOnAction(e-> {primaryStage.setScene(sceneMap.get("client"));
 											primaryStage.setTitle("This is a client");
 											clientConnection = new Client(data->{
-							Platform.runLater(()->{listItems2.getItems().add(data.toString());
-											});
-							});
+							Platform.runLater(()->{
+								listItems2.getItems().add(data.toString());
 
+							   });
+							});
 											clientConnection.start();
 		});
 
@@ -120,8 +126,47 @@ public class GuiServer extends Application{
 
 		groupchat = new Button("Group Chat");
 		groupchat.setStyle("-fx-font-family: 'Arial';" + "-fx-text-fill: #fff8dc;" + "-fx-background-color: #ff8c00;" + "-fx-font-size:20");
-		groupchat.setOnAction(e -> showGroupChatDialog());
+		groupchat.setOnAction(e -> {
+		});
 
+		online = new Button("Online for Group Chat");
+		online.setStyle("-fx-font-family: 'Arial';" + "-fx-text-fill: #fff8dc;" + "-fx-background-color: #ff8c00;" + "-fx-font-size:20");
+		online.setOnAction(e -> {
+			clientConnection.checkOnline();
+			Stage clientListStage = new Stage();
+			clientListStage.setTitle("Clients List for Group chat");
+
+			TextField textField = new TextField();
+			textField.setPromptText("Select Available Clients");
+			textField.setStyle("-fx-font-family: 'Arial';");
+			button = new Button("Group Chat");
+			button.setStyle("-fx-font-family: 'Arial';");
+
+			//------------------------
+			button.setOnAction(eg->{
+				String message = textField.getText();
+				for(int i =0; i<clientsList.size();i++) {
+					clientConnection.sendGroupMessage(message, clientsList.get(i));
+				}
+				textField.clear();
+				clientListStage.close();
+
+			});
+
+			//------------------------
+
+			VBox clientListBox = new VBox();
+			clientListBox.setStyle("-fx-background-color: white");
+			Scene clientListScene = new Scene(clientListBox, 300, 300);
+
+			clientListView = new ListView<String>();
+			clientListView.setStyle("-fx-font-family: 'Arial';");
+
+			clientListBox.getChildren().addAll(clientListView,textField, button);
+
+			clientListStage.setScene(clientListScene);
+			clientListStage.show();
+		});
 
 
 		//#####################################################
@@ -162,13 +207,13 @@ public class GuiServer extends Application{
 
 	public Scene createClientGui() {
 
-		clientVbox = new HBox( 10,b1,groupchat);
+		clientVbox = new HBox( 10,b1,online);
 		clientBox = new VBox(10, c1,clientVbox,listItems2);
 		clientBox.setStyle("-fx-background-color: blue");
 
 
-
 		listItems2.setOnMouseClicked(event -> {
+
 			String selectedItem = listItems2.getSelectionModel().getSelectedItem();
 			if (selectedItem != null && selectedItem.contains("ONLINE") ||selectedItem != null && selectedItem.contains("PRIVATE") ) {
 				String clientName = selectedItem.substring(selectedItem.indexOf("#")+1);
@@ -200,50 +245,32 @@ public class GuiServer extends Application{
 				// add the scene to the new stage and show it
 				privateChatStage.setScene(privateChatScene);
 				privateChatStage.show();
+			}else if(selectedItem != null && selectedItem.contains("Available")){
+				String clientName = selectedItem.substring(selectedItem.indexOf("#")+1);
+				if(clientsList.contains(Integer.parseInt(clientName))){
+					clientsList.remove(Integer.valueOf(clientName));
+				}else{
+					clientsList.add(Integer.parseInt(clientName));
+				}
+				System.out.println(clientsList.size());
+
+				updateClientsListView(clientListView, clientsList);
+
 			}
+
 		});
 
-		return new Scene(clientBox, 400, 300);
+		return new Scene(clientBox, 600, 300);
 
 	}
 
-	public void showGroupChatDialog() {
-
-		Helper helperc = new Helper();
-		clientsList = helperc.getClientListhelper();
-		//clientsList.add();
-
-
-		// Create a new window for the selection dialog
-		Stage dialog = new Stage();
-		dialog.initModality(Modality.APPLICATION_MODAL);
-		dialog.setTitle("Online: "+ clientsList.size());
-
-		// Add a layout for the selection check boxes
-		VBox root = new VBox();
-		root.setSpacing(10);
-
-		// Add a check box for each option
-		for(int i=0; i< clientsList.size(); i++) {
-			CheckBox checkBox = new CheckBox("Client #" + clientsList.get(i));
-			checkBox.setStyle("-fx-font-family: 'Arial';");
-			root.getChildren().add(checkBox);
-		}
-
-
-		// Add a button to the layout to close the dialog
-		Button closeButton = new Button("Close");
-		closeButton.setStyle("-fx-font-family: 'Arial';");
-		closeButton.setOnAction(e -> dialog.close());
-		root.getChildren().add(closeButton);
-
-		// Set the layout as the content of the dialog
-		Scene scene = new Scene(root, 300, 200);
-		dialog.setScene(scene);
-
-		// Show the dialog
-		dialog.showAndWait();
+	private void updateClientsListView(ListView<String> clientListView, ArrayList<Integer> clientsList) {
+		ArrayList<String> clientList = clientsList.stream().map(client -> "Client #" + client).collect(Collectors.toCollection(ArrayList::new));
+		clientListView.getItems().setAll(clientList);
 	}
+
+
+
 
 
 
